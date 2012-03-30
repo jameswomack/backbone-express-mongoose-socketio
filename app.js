@@ -1,25 +1,46 @@
-require("./lib/underscore");
 
-var Server = {},
-    express = require("express"),
-    path = require("path"),
-    sys = require("sys"),
-    application_root = __dirname;
+/**
+ * Module dependencies.
+ */
 
-global.Server = Server;
-Server.root = application_root;
-global.app = express.createServer();
 
-Server.setup = require("./lib/setup.js").setup({
-  //redis: require("./lib/redis-client").createClient(),
-  app: app, 
-  mongoose : require("mongoose"),
-  io : require("socket.io"),
-  express : express,
-  paths : {
-    views :  path.join(application_root,"app","views"),
-    root : path.join(application_root,"public"),
-    controllers : path.join(application_root,"app","controllers"),
-    models : path.join(application_root,"app","models")
-  }
+var express = require('express')
+  , routes = require('./routes')
+  , mongoose = require('mongoose');;
+
+var app = module.exports = express.createServer();
+
+mongoose.connect('mongodb://localhost/brilliant');
+
+// Configuration
+
+app.configure(function(){
+  app.set('views', __dirname + '/views');
+  app.set('view engine', 'jade');
+  app.use(express.bodyParser());
+  app.use(express.methodOverride());
+  app.use(require('stylus').middleware({ src: __dirname + '/public' }));
+  app.use(app.router);
+  app.use(express.static(__dirname + '/public'));
 });
+
+// set up the RESTful API, handler methods are defined in api.js
+var api = require('./controllers/api.js');
+app.post('/thread', api.post);
+app.get('/thread/:title.:format?', api.show);
+app.get('/thread', api.list);
+
+app.configure('development', function(){
+  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
+});
+
+app.configure('production', function(){
+  app.use(express.errorHandler());
+});
+
+// Routes
+
+app.get('/', routes.index);
+
+app.listen(3000);
+console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
